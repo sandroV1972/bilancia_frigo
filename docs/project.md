@@ -9,7 +9,7 @@ Descriviamo i componenti principali:
 - **Sensore di peso**: connesso all’ESP32 per la misura del carico.
 - **Lettore di codici a barre**: consente di riconoscere automaticamente il prodotto appoggiato sulla bilancia.
 - **Circuito di carica**: composto da un TP4056 e una batteria gestisce la carica della batteria e invia a ESP32 il voltaggio corretto di alimentazione
-- **Schermo LCD**: utilizzato per messaggi relativi all'oggetto, peso, comunicazioni o eventuali errori.
+- **Schermo OLED**: utilizzato per messaggi relativi all'oggetto, peso, comunicazioni o eventuali errori.
 
 ## Funzionamento
 1. **Identificazione dell’oggetto**: Viene eseguita la scansione del codice a barre per recuperare informazioni sul prodotto. Il codice GTIN rilevato veine inviato a un servizio ... che restituisce i dati sotoforma di ... Registriamo il peso previsto o il volume (500ml, 1000ml) e calcoliamo le soglie. 
