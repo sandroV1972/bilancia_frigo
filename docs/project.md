@@ -27,7 +27,7 @@ Questi dati possono essere utilizzati per calcolare il valore peso soglia sotto 
 - **WiFi.h**: Per connesione WiFI
 - **WiFiClientSecure.h**: Include WiFi library per connesione https
 - **Wire**
-- **U8g2lib**: Per la gestione del monitor OLED
+- **U8g2lib**: Per la gestione del modulo OLED
 - **HTTPClient.h**: Collegamento con server http per scaricare i file JSON
 - **ArduinoJson.h**: Per il parsing del file JSON
 
