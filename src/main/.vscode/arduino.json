@@ -1,9 +1,9 @@
 {
-  "port": "/dev/cu.usbserial-110",
+  "port": "/dev/cu.debug-console",
   "configuration": "UploadSpeed=115200,FlashFreq=80,DebugLevel=none,EraseFlash=none",
   "output": "build",
   "board": "esp32:esp32:nodemcu-32s",
-  "programmer": "",
+  "programmer": "Esptool",
   "useProgrammer": false,
   "configurationRequired": true,
   "monitorPortSettings": {
