@@ -24,12 +24,12 @@ Componenti principali:
 Questi dati possono essere utilizzati per calcolare il valore peso soglia sotto il quale viene inviato un mesaggio al servere MQTT (...)
 
 ## Librerie Utilizzate
-- WiFi.h // Per connesione WiFI
-- WiFiClientSecure.h  // Include WiFi library per connesione https
-- Wire.h
-- U8g2lib // Per la gestione del monitor OLED
-- HTTPClient.h // Collegamento con server http per scaricare i file JSON
-- ArduinoJson.h // Per il parsing del file JSON
+- **WiFi.h**: Per connesione WiFI
+- **WiFiClientSecure.h**: Include WiFi library per connesione https
+- **Wire**
+- **U8g2lib**: Per la gestione del monitor OLED
+- **HTTPClient.h**: Collegamento con server http per scaricare i file JSON
+- **ArduinoJson.h**: Per il parsing del file JSON
 
 ## Librerie  create (non trovate alternative)
 - display_manager.h // Gestione più semplice dei font per il testo da inviare all'OLED
