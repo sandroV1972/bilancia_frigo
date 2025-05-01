@@ -23,6 +23,18 @@ Componenti principali:
 4. **Notifica o interfacciamento**: ESP32 si collega a un server https di openfoodfacts.org che accetta richieste con il codice GTIN del prodotto letto dal sensore 1D/2D. Il server restituisce dati del prodotto in formato JSON.
 Questi dati possono essere utilizzati per calcolare il valore peso soglia sotto il quale viene inviato un mesaggio al servere MQTT (...)
 
+## Librerie Utilizzate
+- WiFi.h // Per connesione WiFI
+- WiFiClientSecure.h  // Include WiFi library per connesione https
+- Wire.h
+- U8g2lib // Per la gestione del monitor OLED
+- HTTPClient.h // Collegamento con server http per scaricare i file JSON
+- ArduinoJson.h // Per il parsing del file JSON
+
+## Librerie  create (non trovate alternative)
+- display_manager.h // Gestione più semplice dei font per il testo da inviare all'OLED
+- led_rgb_controller.h // Gestione e test componente SMD RGB e attivare colori base chiamando una semplice funzione 
+
 ## Conclusioni
 Il sistema illustrato rappresenta un prototipo di bilancia “smart” che può essere impiegata in contesti domestici per esempio in frigo dove appoggiando un prodotto saremo automaticamente avvertiti se la quantità residua del prodotto è sotto una certa soglia e quindi vine e richiesto il nuvo approviggionamento dello stesso prodotto.
 
