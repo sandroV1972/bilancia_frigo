@@ -4,12 +4,17 @@
 In questo progetto descriviamo una bilancia intelligente basata su ESP32, dotata di un sensore di peso e di un lettore di codici a barre. La bilancia è in grado di misurare la massa di un oggetto, leggere il codice a barre per identificarlo e, eventualmente, inviare notifiche o memorizzare i dati su un servizio esterno.
 
 ## Hardware
-Descriviamo i componenti principali:
-- **ESP32**: MCU principale che gestisce la logica, la comunicazione e l’elaborazione dei dati.
-- **Sensore di peso**: connesso all’ESP32 per la misura del carico.
-- **Lettore di codici a barre**: consente di riconoscere automaticamente il prodotto appoggiato sulla bilancia.
-- **Circuito di carica**: composto da un TP4056 e una batteria gestisce la carica della batteria e invia a ESP32 il voltaggio corretto di alimentazione
-- **Schermo OLED**: utilizzato per messaggi relativi all'oggetto, peso, comunicazioni o eventuali errori.
+Componenti principali:
+- **ESP32**: MCU principale che gestisce la logica, la comunicazione e l’elaborazione dei dati. NodeMCU-32 board ESP32 WROOM-32 
+- **Cella di carico**: connesso all’ESP32 per la misura del carico.
+- **Lettore di codici a barre**: consente di riconoscere automaticamente il prodotto appoggiato sulla bilancia. MH-ET LIVE basato su GM65
+- **Circuito di carica**: composto da un TP4056 e una batteria gestisce la carica della batteria e invia a ESP32 il voltaggio corretto di alimentazione 
+- **Schermo OLED**: utilizzato per messaggi relativi all'oggetto, peso, comunicazioni o eventuali errori. OLED 1.3" da AZ con connessione IIC
+
+## Altre componenti
+- Piatti in plexiglass 3mm per 20cm di diametro
+- Rivetti da incollare nel plexiglass
+- Bulloni senza testa per fissare la cella di carico ai piatti in plexiglass
 
 ## Funzionamento
 1. **Identificazione dell’oggetto**: Viene eseguita la scansione del codice a barre per recuperare informazioni sul prodotto. Il codice GTIN rilevato veine inviato a un servizio ... che restituisce i dati sotoforma di ... Registriamo il peso previsto o il volume (500ml, 1000ml) e calcoliamo le soglie. 
