@@ -6,16 +6,20 @@ La bilancia è un oggetto piatto che può alloggiare un Tetrapack  quadrato. Lo 
 ## Componenti Hardware
 
 ### Main Board
-ESP32-WROOM32 (Da AZ-Delivery)
+ESP32-WROOM32  MCU NodeMCU-32S
 ### Alimentazione
 TP4056
 Batteria Li-Ion 3.7v 1000mA
 ### Sensori
-Lettore 1D 2D
-Sensore di pressione (peso)
+Lettore 1D 2D basato su GM65
+~~Sensore di pressione (peso)~~ [sensore di pressione troppo impreciso e con risposte randomiche]
+Cella di carico con amplificatore HX711
 ### Attuatori 
-Schermo LCD I2C
-LED
+Schermo OLED 1.3 pollici I2C
+LED:  blu (comunicazione wifi attiva)
+      verde (prodotto memorizzato)
+      giallo (nessun prodotto memorizzato)
+      giallo lampeggiante (lettore QR attivo)
 ### Sistemi di Comunicazione
-HTTP a server per riconoscimento oggetti da pesare passando il codice letto (GTIN)
+HTTP a server @openfoodfacts.org/api/v0/ per riconoscimento oggetti da pesare passando il codice letto (GTIN)
 MQQT trasmissione risultati pesate se al di sotto dei livelli minimi consentiti
