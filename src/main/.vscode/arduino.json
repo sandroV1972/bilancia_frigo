@@ -1,0 +1,17 @@
+{
+  "port": "/dev/cu.usbserial-110",
+  "configuration": "UploadSpeed=115200,FlashFreq=80,DebugLevel=none,EraseFlash=none",
+  "output": "build",
+  "board": "esp32:esp32:nodemcu-32s",
+  "programmer": "",
+  "useProgrammer": false,
+  "configurationRequired": true,
+  "monitorPortSettings": {
+    "port": "/dev/cu.usbserial-110",
+    "baudRate": 115200,
+    "lineEnding": "\r\n",
+    "dataBits": 8,
+    "parity": "none",
+    "stopBits": "one"
+  }
+}

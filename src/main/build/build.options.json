@@ -1,0 +1,9 @@
+{
+  "additionalFiles": "../../..,../../..,../..,../..,../..",
+  "compiler.optimization_flags": "-Os",
+  "customBuildProperties": "build.warn_data_percentage=75",
+  "fqbn": "esp32:esp32:nodemcu-32s:UploadSpeed=115200,FlashFreq=80,DebugLevel=none,EraseFlash=none",
+  "hardwareFolders": "/Users/alessandrovalenti/Library/Arduino15/packages",
+  "otherLibrariesFolders": "/Users/alessandrovalenti/Documents/Arduino/libraries",
+  "sketchLocation": "/Users/alessandrovalenti/Documents/Università/Informatica/II_year/II_semestre/Sistemi Embedded/progetto/sistemi_embedded/src/main"
+}
