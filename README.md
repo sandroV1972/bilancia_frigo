@@ -9,6 +9,7 @@ La bilancia è un oggetto piatto che può alloggiare un Tetrapack  quadrato. Lo 
 - ESP32-WROOM32  MCU NodeMCU-32S
 ### Alimentazione
 - TP4056
+- Step Up converter OUT 5v
 - Batteria Li-Ion 3.7v 1000mA
 ### Sensori
 - Lettore 1D 2D basato su GM65
