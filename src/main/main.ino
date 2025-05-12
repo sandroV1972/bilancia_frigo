@@ -1,105 +1,97 @@
 /*
  * Autore: Alessandro Valenti
  * Data: 12 marzo 2025
+ * Versione: 0.1
  *
- * Versione 0.1
- *
- * Questo codice è rilasciato sotto licenza open source.
- * Può essere utilizzato, modificato e distribuito liberamente
- * secondo i termini delle licenze libere, GPL.
+ * Questo codice è rilasciato sotto licenza open source (GPL).
+ * Può essere utilizzato, modificato e distribuito liberamente.
  */
 
 #include <WiFi.h>
-#include <WiFiClientSecure.h>  // Include WiFi library
-#include <credentials.h> // WIFI credentials for local wifi
+#include <WiFiClientSecure.h>
+#include <credentials.h>  // Credenziali WiFi
 #include <Wire.h>
 #include <U8g2lib.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <display_manager.h>
-#include <Arduino.h>     
+#include <Arduino.h>
 #include <led_rgb_controller.h>
+#include <battery.h>
+#include "HX711.h"
 
-// SH1106, I2C, buffer pieno, senza pin reset
+// Inizializza la cella di carico (HX711)
+HX711 loadcell;
+const int LOADCELL_DOUT_PIN = 34;
+const int LOADCELL_SCK_PIN = 35;
+int ultimo_peso = 0;
+const long LOADCELL_OFFSET = 50682624;
+const long LOADCELL_DIVIDER = 5895655;
+
+// Inizializza la lettura batteria sul pin 32
+Battery batteria(32);
+
+// Display OLED SH1106 128X64 Pixels monocromatico con protocollo comunicazione I2C
 U8G2_SH1106_128X64_NONAME_F_HW_I2C oled(U8G2_R0, U8X8_PIN_NONE);
-// Crea una iastanza di DisplayManager
-DisplayManager screen(oled);
+// Oggetto DisplayManager 
+DisplayManager screen(oled, batteria);
 
-// Definisce il pin per ricevere dati di peso
-#define SENSOR_PIN 32  // Use an ADC pin (GPIO32)
+#define SCAN_PIN 4   // Pulsante scansione QR
+#define RXD2 16      // Serial2 RX from QR scanner
+#define TXD2 17      // Serial2 TX from QR scanner
 
-// Definisce il pin per il segnale del pulsante per la scansione QR
-#define SCAN_PIN 4 // PIN per attivare scansione
-
-//Definisce i pin per comunicazone UART
-#define RXD2 16 // Serial2 RX from QR scanner
-#define TXD2 17 // Serial2 TX from QR scanner
-
-// Clinet wifi per connessione HTTPS
 WiFiClientSecure client;
-LedRGB led(13, 12, 14);  // R=13, G=12, B=14
-
-// Url per le richieste JSON per ricevere dati prodotto
+LedRGB led(13, 12, 14);  // LED RGB: R=13, G=12, B=14
 String apiUrl = "https://world.openfoodfacts.org/api/v0/product/";
-//String apiUrl = "http://world.openfoodfacts.org/api/v0/product/";
 
-int val;
-
+/**
+ * @brief Inizializza periferiche (WiFi, display, HX711, QR scanner, LED RGB).
+ * - Entra in deep sleep se batteria < 5%
+ * - Configura QR scanner in modalità comando
+ * - Mostra stato su display
+ * - Inizializza HX711
+ */
 void setup() {
-  // Serial inizializzazione 115200 baud 
-  Serial.begin(115200);  
-  // Serial2 inizializzazione seriale per comunicare con lettore QR
-  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2); // Serial2 connect to GM65
+  Serial.begin(115200);
+
+  if (batteria.percentualeBatteria() <= 5) {
+    esp_sleep_enable_timer_wakeup(60 * 1000000);
+    esp_deep_sleep_start();
+  }
+
+  pinMode(SCAN_PIN, INPUT_PULLUP);
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
   delay(200);
 
-
-  // pulsante attivo alla pressione e pin led
-  pinMode(SCAN_PIN, INPUT_PULLUP);
- 
-
-  // Imposta modalità comando per lettore GM65 QR code
   String mode = getWorkingMode();
-  if (mode.indexOf("00210003") != -1) {
-    Serial.println("✅ Modalità comando già attiva.");
-  } else {
-    Serial.println("⚙️ Imposto modalità comando...");
+  if (mode.indexOf("00210003") == -1) {
+    Serial.println("Imposto modalità comando...");
     Serial2.print("~M00210003.\r\n");
     delay(200);
-    // salva come default
-    Serial2.print("~MA5F0506A.\r\n"); 
+    Serial2.print("~MA5F0506A.\r\n");
     if (Serial2.available()) {
-      Serial.println(Serial2.readStringUntil('\n')); // ti dirà [ACK] o [NAK]
+      Serial.println(Serial2.readStringUntil('\n'));
     }
   }
 
-  // inizializza display OLED
-  screen.begin();                 
+  screen.begin();
   screen.clearScreen();
   screen.setFont("Times", 10);
   screen.println("Init...");
   screen.println("Connessione WiFi...");
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-  // attendi la connessione WIFI per 10 secondi
-  unsigned long start = millis();
   while (WiFi.status() != WL_CONNECTED) {
     delay(250);
   }
-    led.blue();
-    screen.clearScreen();
-    screen.println("Connesso: ");
-    screen.println(WiFi.SSID());
-  
- 
-  Serial.println("Inizializzazione QR...");
+  led.blue();
+  screen.clearScreen();
+  screen.println("Connesso: ");
+  screen.println(WiFi.SSID());
 
-  // Prova trigger
   Serial2.print("~T.\r\n");
-  delay(500);  // attesa risposta
-
-  // Prova la connessione a QR scanner
+  delay(500);
   if (Serial2.available()) {
-    //String risposta = Serial2.readStringUntil('\n');
+    screen.clearScreen();
     screen.println("QR OK!");
     delay(500);
     screen.clearScreen();
@@ -107,27 +99,57 @@ void setup() {
     screen.println("Errore QR!");
   }
 
-  //led.test();
-
+  loadcell.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+  loadcell.set_scale(LOADCELL_DIVIDER);
+  loadcell.set_offset(LOADCELL_OFFSET);
 }
 
+/**
+ * @brief Loop principale: gestisce scansione QR e lettura peso.
+ */
+void loop() {
+  if (digitalRead(SCAN_PIN) == HIGH) {
+    screen.clearScreen();
+    screen.println("Scan...");
+    String code = scanQRCode();
+    screen.println(code);
+    if (code != "") {
+      Serial.println("Codice letto: " + code);
+      fetchProductData(code);
+    } else {
+      screen.println("NO CODE");
+    }
+  }
 
-// Controlla modalità del modulo QR
+  int peso = loadcell.get_units(10);
+  if (peso != 0 && peso != ultimo_peso) {
+    Serial.print("Peso: ");
+    Serial.println(peso + " - " + ultimo_peso);
+    ultimo_peso = peso;
+  }
+  delay(500);
+}
+
+/**
+ * @brief Legge la modalità corrente del lettore QR scanner GM65.
+ * @return String contenente il codice della modalità.
+ */
 String getWorkingMode() {
   Serial2.flush();
   Serial2.print("~Q0021.\r\n");
-  delay(100);  // attesa breve
-
+  delay(100);
   String response = "";
   if (Serial2.available()) {
     response = Serial2.readStringUntil('\n');
   }
-
   return response;
 }
 
-// esegue una scansione con il moduleo GM65
-// restituisce un codice numerico
+/**
+ * @brief Avvia la scansione QR e restituisce il codice letto.
+ * @param timeout Tempo massimo di attesa in ms (default: 3000).
+ * @return String contenente il codice numerico, oppure vuota.
+ */
 String scanQRCode(unsigned long timeout = 3000) {
   led.yellow();
   Serial2.flush();
@@ -140,120 +162,71 @@ String scanQRCode(unsigned long timeout = 3000) {
     if (Serial2.available()) {
       raw = Serial2.readStringUntil('\n');
       raw.trim();
-
-      // Rimuove eventuali caratteri non numerici prima del vero codice
       int i = 0;
       while (i < raw.length() && !isDigit(raw[i])) i++;
       String codice = raw.substring(i);
-      codice.trim();  
-
+      codice.trim();
       return codice;
     }
   }
-
   return "";
 }
 
-
-// Connetti a OpenFoodFacts e raccogli informazioni del prodotto scansionato
+/**
+ * @brief Recupera i dati prodotto da OpenFoodFacts tramite codice a barre.
+ * @param code Codice numerico del prodotto.
+ */
 void fetchProductData(String code) {
   if (WiFi.status() == WL_CONNECTED) {
     String url = apiUrl + code + ".json";
     Serial.println("➡️ URL: " + url);
 
-    client.setInsecure();  // evita verifica certificato https
+    client.setInsecure();
     HTTPClient http;
     http.begin(client, url);
     int httpCode = http.GET();
 
     if (httpCode == 200) {
-      Serial.println("✅ HTTP OK → provo parsing JSON");
-
+      Serial.println("HTTP OK → provo parsing JSON");
       String response = http.getString();
-      Serial.println("📦 JSON ricevuto:");
+      Serial.println("JSON ricevuto:");
       Serial.println(response);
-
-
-      parseJSON(response);  // parsing diretto, ignorando Content-Type
+      parseJSON(response);
     } else {
-      Serial.print("❌ HTTP Code: ");
+      Serial.print("HTTP Code: ");
       Serial.println(httpCode);
       screen.clearScreen();
-      screen.println("❌ Errore HTTP");
+      screen.println("Errore HTTP");
     }
-
     http.end();
   } else {
-    Serial.println("⚠️ WiFi Disconnected!");
+    Serial.println("WiFi Disconnected!");
     screen.clearScreen();
-    screen.println("❌ No WiFi");
+    screen.println("No WiFi");
   }
 }
 
-void loop() {
-  //se il pulsante è premuto esegui una scansione
-  if (digitalRead(SCAN_PIN) == HIGH) {
-    screen.clearScreen();
-    screen.println("Scan...");
-
-    //richiama il codice per la scansione
-    String code = scanQRCode();
-    screen.println(code);
-    if (code != "") {
-      Serial.println("Codide letto: " + code);
-      fetchProductData(code);
-    } else {
-      screen.println("NO CODE");
-    }
-    delay(500);
-  }
-  //Entra in low power mode se
-  // - non c'è nulla appoggiato
-  // - ho effettuato tutte le operazioni e il brikko è inserito 
-  // 
-
-  //Esci da low power mode se-
-  // - sono attualmente in lpm ed è stato appoggiato un brikko
-  // - nonè appoggiato un brikko ed è stato selezionato il bottone di scanQRCode
-
-
-/*
-int rawValue = analogRead(SENSOR_PIN);  // Read raw ADC value (0 - 4095)
-  int weight = rawValue/100;
-  // Write soething only it there is a chane in pressure
-  if (rawValue != 0) {
-    Serial.print("Peso: ");
-    Serial.println(weight);
-  }
-*/  
-
-  delay(500);  // Wait 500ms before next read
-}
-
-
-// Passa la stringa tornata dal server di openfoodfacts e la parserizza per ricavare 
-// i dati dui cui abbiammo bisogno:
-//  Nome prodotto
-//  Nome produttore
-//  Peso
-//
+/**
+ * @brief Parsing del JSON da OpenFoodFacts per estrarre nome, marca, peso.
+ * @param jsonResponse Risposta JSON completa.
+ */
 void parseJSON(const String& jsonResponse) {
-  DynamicJsonDocument doc(24576);  // 24 KB buffer per JSON grandi
-
+  DynamicJsonDocument doc(24576);
   DeserializationError error = deserializeJson(doc, jsonResponse);
+
   if (error) {
     Serial.print("⚠️ JSON Parsing failed: ");
     Serial.println(error.c_str());
     screen.clearScreen();
-    screen.println("❌ JSON error");
+    screen.println("JSON error");
     return;
   }
 
   int status = doc["status"] | 0;
   if (status == 0) {
-    Serial.println("❌ Prodotto non trovato");
+    Serial.println("Prodotto non trovato");
     screen.clearScreen();
-    screen.println("❌ NOT FOUND");
+    screen.println("NOT FOUND");
     return;
   }
 
@@ -262,10 +235,6 @@ void parseJSON(const String& jsonResponse) {
   String name = product["product_name"] | "Sconosciuto";
   String brand = product["brands"] | "Sconosciuto";
   String quantity = product["product_quantity"] | "N/D";
-
-  Serial.println("🛒 Nome: " + name);
-  Serial.println("🏭 Brand: " + brand);
-  Serial.println("⚖️ Peso: " + quantity + "g");
 
   screen.clearScreen();
   screen.println(name);
