@@ -14,7 +14,7 @@ class FontRegistryU8g2 : public FontRegistry {
 public:
   FontRegistryU8g2() {
     // ===== Helvetica (helv) - Arial Style =====
-    add("Arial", 6, u8g2_font_helvR06_tf);
+    //add("Arial", 6, u8g2_font_helvR06_tf);
     add("Arial", 8, u8g2_font_helvR08_tf);
     add("Arial", 10, u8g2_font_helvR10_tf);
     add("Arial", 12, u8g2_font_helvR12_tf);
