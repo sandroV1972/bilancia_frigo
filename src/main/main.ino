@@ -7,22 +7,26 @@
  * Può essere utilizzato, modificato e distribuito liberamente.
  */
 
+#include <Arduino.h>
+#include <ArduinoJson.h>
+#include <battery.h>
+#include <credentials.h>  // Credenziali WiFi
+#include <display_manager.h>
+#include <HTTPClient.h>
+#include "HX711.h"
+#include <id_billancia.h>
+#include <led_rgb_controller.h>
+#include <Preferences.h>
+#include <PubSubClient.h>
+#include <qr_func.h>
+#include "QRCodeGenerator.h"
+#include <U8g2lib.h>
+#include <UniversalTelegramBot.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-#include <credentials.h>  // Credenziali WiFi
 #include <Wire.h>
-#include <U8g2lib.h>
-#include <HTTPClient.h>
-#include <ArduinoJson.h>
-#include <display_manager.h>
-#include <Arduino.h>
-#include <led_rgb_controller.h>
-#include <battery.h>
-#include <PubSubClient.h>
-#include "HX711.h"
-#include <qr_func.h>
 
-
+Preferences prefs;
 HX711 loadcell; // Inizializza la cella di carico (HX711)
 const int LOADCELL_DOUT_PIN = 26;
 const int LOADCELL_SCK_PIN = 25;
@@ -53,7 +57,10 @@ LedRGB led(13, 12, 14);  // LED RGB: R=13, G=12, B=14
 
 // URL used to rtreive JSON of scanned products
 String apiUrl = "https://world.openfoodfacts.org/api/v0/product/";
+String qrUrl = String("https://t.me/bilanciafrigo_bot?start=") + device_id;
 
+const String topic = "bilancia/" + String(device_id);
+float original_weight = 0;
 /**
  * @brief Inizializza periferiche (WiFi, display, HX711, QR scanner, LED RGB).
  * - Entra in deep sleep se batteria < 5%
@@ -63,6 +70,8 @@ String apiUrl = "https://world.openfoodfacts.org/api/v0/product/";
  */
 void setup() {
   Serial.begin(115200);
+
+  prefs.begin("bilancia", false);  // apre namespace "bilancia" in R/W
 
   // Battery parameters
   if (batteria.percentualeBatteria() <= 5) {
@@ -107,6 +116,27 @@ void setup() {
   screen.clearScreen();
   screen.println("Connesso: ");
   screen.println(WiFi.SSID());
+
+  // Parametri namespace BILANCIA in memoria
+  // nome       | type (default)  | descrizione
+  // _________________________________________________________________________
+  // registrato - bool (false)    - registrazione bilancia per messaggi Telegram
+  // prodotto.  - String (N\A).   - nome del prodotto
+  // marca.     - String (N\A).   - marca del prodotto
+  // peso.      - float (0.0).    - peso del prodotto pieno
+  //
+  bool isRegistered = prefs.getBool("registrato", false);
+  String prodName = prefs.getString("nome", "N\A");
+  String prodBrand = prefs.getString("marca", "N\A");
+  float prodWeight = prefs.getFloat("pesp", 0.0);
+  if (!isRegistered) {
+    // Mostra QR code
+    Serial.println("NON REGISTRATO");
+    screen.drawQRCode(qrUrl);
+    delay(10000);
+  }
+  
+
 
   loadcell.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
   loadcell.set_scale(250.0f);
@@ -158,13 +188,11 @@ void loop() {
     lastTime = currentTime;
     if (peso > 2000) {
       Serial.println("Invio...");
-      client.publish("test/messaggi", String(peso).c_str());
-    } else if (lastPeso > 2000.00 && peso < 2000) {
-      Serial.println("Invio...");
-      client.publish("test/messaggi", "off");
+      client.publish(topic.c_str(), String(peso).c_str());
     }
     lastPeso = peso;
   }
+  delay(1000);
 }
 
 
@@ -229,13 +257,25 @@ void parseJSON(const String& jsonResponse) {
   led.green();
   JsonObject product = doc["product"];
   String name = product["product_name"] | "Sconosciuto";
+  prefs.putString("nome", name);
   String brand = product["brands"] | "Sconosciuto";
+  prefs.putString("marca", brand);
   String quantity = product["product_quantity"] | "N/D";
+  prefs.putFloat("peso", quantity.toFloat());
+
+  if (quantity.length() > 0 && peso > 0.0) {
+    prefs.putFloat("peso", peso);
+    Serial.println("✅ Peso salvato: " + String(peso));
+  } else {
+    prefs.putFloat("peso", 0.0);
+    Serial.println("⚠️ Peso non disponibile o non valido.");
+  }
 
   screen.clearScreen();
   screen.println(name);
   screen.println(brand);
   screen.println("Peso: " + quantity + "g");
+  original_weight = quantity.toFloat();
 }
 
 void callback(char* topic, byte* message, unsigned int length) {
@@ -253,7 +293,8 @@ void callback(char* topic, byte* message, unsigned int length) {
   // Feel free to add more if statements to control more GPIOs with MQTT
 
  
-  if (String(topic) == "test/messaggi") {
+  if (String(topic) == String("bilancia/")+device_id) {
+    /*
     Serial.print("Changing output to ");
     if (isNumeric(messageTemp)){
       float num = messageTemp.toFloat();
@@ -262,17 +303,15 @@ void callback(char* topic, byte* message, unsigned int length) {
         digitalWrite(LED_BUILTIN, HIGH);
       } 
     }
-    if(messageTemp == "on"){
-      Serial.println("on");
-      digitalWrite(LED_BUILTIN, HIGH);
-    }
-    else if(messageTemp == "off"){
-      Serial.println("off");
-      digitalWrite(LED_BUILTIN, LOW);
+    */
+
+    if(messageTemp == "registered"){
+      Serial.println("registrato in telegramß");
+      prefs.putBool("registrato", true);
     }
   }
 }
-
+/*
 bool isNumeric(const String& str) {
   if (str.length() == 0) return false;
   bool punto = false;
@@ -288,7 +327,7 @@ bool isNumeric(const String& str) {
   }
   return true;
 }
-
+*/
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
@@ -296,7 +335,7 @@ void reconnect() {
     // Attempt to connect
     if (client.connect("ESP32scale")) {
       Serial.println("Connesso a broker MQTT come ESP32Scale");
-      client.subscribe("test/messaggi");
+      client.subscribe(topic.c_str());
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());

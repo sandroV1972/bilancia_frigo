@@ -10,13 +10,15 @@
  */
 
 #ifndef DISPLAY_MANAGER_H
-#define DISPLAY_MANAGER_H
+#define DISPLAY_MANAGER_H/Users/alessandrovalenti/Documents/Arduino/libraries/QRCode/src/qrcode.c /Users/alessandrovalenti/Documents/Arduino/libraries/QRCode/src/qrcode.h
 
-#include <U8g2lib.h>
+#include "QRCodeGenerator.h"
 #include <Arduino.h>
 #include <battery.h>
-#include <WiFi.h>
 #include "font_u8g2_adapter.h"
+#include <U8g2lib.h>
+#include <WiFi.h>
+
 
 class DisplayManager {
 private:
@@ -99,6 +101,28 @@ public:
     u8g2->print((int)percent);
     u8g2->print("%");
   }
+  
+  void drawQRCode(const String& text) {
+    QRCode qrcode;
+    uint8_t qrcodeData[qrcode_getBufferSize(3)];
+    qrcode_initText(&qrcode, qrcodeData, 3, ECC_LOW, text.c_str());
+
+    const int scale = 2;  // dimensione del quadratino
+    const int offset_x = 32;
+    const int offset_y = 16;
+
+    u8g2->clearBuffer();
+    for (uint8_t y = 0; y < qrcode.size; y++) {
+      for (uint8_t x = 0; x < qrcode.size; x++) {
+        if (qrcode_getModule(&qrcode, x, y)) {
+          u8g2->drawBox(x * scale, y * scale, scale, scale);
+        }
+      }
+    }
+    u8g2->sendBuffer();
+  }
 };
+
+
 
 #endif

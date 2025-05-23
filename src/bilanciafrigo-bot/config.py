@@ -1,0 +1,5 @@
+
+BOT_TOKEN = "INSERISCI_IL_TUO_TOKEN"
+MQTT_BROKER = "localhost"
+MQTT_PORT = 1883
+MQTT_TOPIC = "bilance/#"
