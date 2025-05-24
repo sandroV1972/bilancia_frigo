@@ -17,8 +17,8 @@ Componenti principali:
 - Bulloni senza testa per fissare la cella di carico ai piatti in plexiglass
 
 ## Schema Sistema
-![Sistema](../img) 
-![Circuito](../img)
+![Immagine](imgs/) 
+![Circuito](imgs/)
 
 ## Funzionamento
 1. **Identificazione dell’oggetto**: Viene eseguita la scansione del codice a barre per recuperare informazioni sul prodotto. Il codice GTIN rilevato veine inviato a "https://world.openfoodfacts.org/api/v0/product/" che restituisce i dati sotoforma di file JSON. Registriamo il peso previsto o il volume (500ml, 1000ml) e calcoliamo le soglie 50% o 20% ecc... 
