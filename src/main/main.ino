@@ -19,7 +19,6 @@
 #include <Preferences.h>
 #include <PubSubClient.h>
 #include <qr_func.h>
-#include "QRCodeGenerator.h"
 #include <U8g2lib.h>
 #include <UniversalTelegramBot.h>
 #include <WiFi.h>
@@ -120,22 +119,13 @@ void setup() {
   // Parametri namespace BILANCIA in memoria
   // nome       | type (default)  | descrizione
   // _________________________________________________________________________
-  // registrato - bool (false)    - registrazione bilancia per messaggi Telegram
   // prodotto.  - String (N\A).   - nome del prodotto
   // marca.     - String (N\A).   - marca del prodotto
   // peso.      - float (0.0).    - peso del prodotto pieno
   //
-  bool isRegistered = prefs.getBool("registrato", false);
   String prodName = prefs.getString("nome", "N\A");
   String prodBrand = prefs.getString("marca", "N\A");
   float prodWeight = prefs.getFloat("pesp", 0.0);
-  if (!isRegistered) {
-    // Mostra QR code
-    Serial.println("NON REGISTRATO");
-    screen.drawQRCode(qrUrl);
-    delay(10000);
-  }
-  
 
 
   loadcell.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
