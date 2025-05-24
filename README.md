@@ -24,4 +24,4 @@ La bilancia è un oggetto piatto che può alloggiare un Tetrapack  quadrato. Lo 
   - giallo lampeggiante (lettore QR attivo)
 ### Sistemi di Comunicazione
 - HTTP a server @openfoodfacts.org/api/v0/ per riconoscimento oggetti da pesare passando il codice letto (GTIN)
-- MQQT trasmissione risultati pesate se al di sotto dei livelli minimi consentiti
+- MQTT trasmissione risultati pesate se al di sotto dei livelli minimi consentiti
