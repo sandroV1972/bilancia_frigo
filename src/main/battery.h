@@ -26,6 +26,7 @@ float leggiTensioneBatteria() {
 
   // Converte la tensione della batteria in percentuale (curva non lineare)
   int stimaCaricaBatteria(float v_batt) {
+    Serial.println(String(v_batt, 2));
     if (v_batt >= 4.20) return 100;
     else if (v_batt >= 4.15) return 95;
     else if (v_batt >= 4.11) return 90;

@@ -11,28 +11,33 @@
 #include "ArduinoJson.h"
 #include "battery.h"
 #include "display_manager.h"
+#include "globals.h"
 #include <HTTPClient.h>
 #include "HX711.h"
-#include "id_billancia.h"
+#include "id_bilancia.h"
 #include "led_rgb_controller.h"
+#include "nvs_flash.h"
 #include <Preferences.h>
 #include <PubSubClient.h>
 #include "qr_func.h"
-#include "QRCodeGenerator.h"
+//#include "QRCodeGenerator.h"
 #include <U8g2lib.h>
 #include <UniversalTelegramBot.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <WiFiManager.h>
+#include "wifi_manager.h"
 #include <Wire.h>
+#define BATTERY_PIN 32 // pin controllo livello batteria
 #define SCAN_PIN 5   // Pulsante scansione QR
 #define RXD2 16      // Serial2 RX from QR scanner
 #define TXD2 17      // Serial2 TX from QR scanner
 #define RESET_PIN 4
 #define RESET_HOLD_TIME 5000 // ms (5 secondi)
+#define LOADCELL_DOUT_PIN 26
+#define LOADCELL_SCK_PIN 25
 
-Preferences prefs;
 unsigned long resetPressStart = 0;
 bool resetInProgress = false;
 WebServer server;
@@ -43,14 +48,13 @@ WiFiClient mqttclient;
 const char* mqtt_server = "mqtt.atrent.it";
 PubSubClient client(mqttclient);
 HX711 loadcell; // Inizializza la cella di carico (HX711)
-const int LOADCELL_DOUT_PIN = 26;
-const int LOADCELL_SCK_PIN = 25;
+
 float lastPeso = 0.00;
 unsigned long lastTime = 0;
 int lettureUguali = 0;
 const unsigned long interval = 500;  // 0.5 secondi = 500 ms
 // Inizializza la lettura batteria sul pin 32
-Battery batteria(32);
+Battery batteria(BATTERY_PIN);
 // Display OLED SH1106 128X64 Pixels monocromatico con protocollo comunicazione I2C
 U8G2_SH1106_128X64_NONAME_F_HW_I2C oled(U8G2_R0, U8X8_PIN_NONE);
 // Oggetto DisplayManager 
@@ -59,12 +63,18 @@ LedRGB led(13, 12, 14);  // LED RGB: R=13, G=12, B=14
 // URL used to rtreive JSON of scanned products
 String apiUrl = "https://world.openfoodfacts.org/api/v0/product/";
 const String topic = "bilancia/" + String(device_id);
-String prodName = "";
+const String ssid_captive = "BILANCIA-"+String(device_id);
+
 float original_weight = 0;
 float peso = 0;
 TaskHandle_t taskBilancia;
-float ultimo_peso = 0;
-int stazionario_counter = 0;
+
+Preferences prefs;
+String prodName;
+String prodBrand;
+float prodWeight;
+String ssid;
+String password;
 
 /**
  * @brief Inizializza periferiche (WiFi, display, HX711, QR scanner, LED RGB).
@@ -78,78 +88,48 @@ void setup() {
   Serial.begin(115200);
   delay(500);
 
+  // Se al reboot il tasto reset ROSSO viene è attivato il modulo si resetta
   pinMode(RESET_PIN, INPUT_PULLUP);
-  
-  prefs.begin("bilancia", false);  // apre namespace "bilancia" in R/W
-  prefs.begin("wifi", false); // apre namespace "wifi" in R/W
-
-  String ssid_salvato = prefs.getString("ssid", "");
-  String password_salvato = prefs.getString("password", "");
-  String ssid_name = "BILANCIA" + String(device_id);
-
-  Serial.println(ssid_salvato);
-    // Parametri namespace BILANCIA in memoria
-  // nome       | type (default)  | descrizione
-  // _________________________________________________________________________
-  // prodotto.  - String (N\A).   - nome del prodotto
-  // marca.     - String (N\A).   - marca del prodotto
-  // peso.      - float (0.0).    - peso del prodotto pieno
-  //
-  prodName = prefs.getString("nome", "N/A");
-  String prodBrand = prefs.getString("marca", "N/A");
-  float prodWeight = prefs.getFloat("peso", 0.0);
-
-  Serial.println(prodName + prodBrand + prodWeight);
-  // OLED Monitor setup
-  screen.begin();
-  screen.clearScreen();
-
   if (digitalRead(RESET_PIN) == HIGH) {
     Serial.println("RESET");
-    prefs.clear();
-    prefs.end();
-    delay(500);
-    // Disconnetti da qualsiasi rete Wi-Fi attiva
-     WiFi.disconnect(true); // 'true' cancella le credenziali Wi-Fi salvate in flash (NVS) 
-    // Metti il modulo Wi-Fi in modalità spenta
+    resetNVS();
     WiFi.mode(WIFI_OFF);
     wifimanager.resetSettings();
     Serial.println("🔁 Reboot...");
     delay(1000);
     ESP.restart();
-
   }
-  // se memorizzato una SSID prova a collegarsi per 10 secondi altrimenti mostra comunque il QR del portale
-  if (ssid_salvato != "") {
-    screen.println("Connetto a " + ssid_salvato);
-    WiFi.begin(ssid_salvato.c_str(),password_salvato.c_str());
-    unsigned long startAttempt = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < 10000) {
-      delay(500);
-    }
+  ////////
+    WiFi.begin("CASAVALENTI", "mmeni1607aC");
+  Serial.print("Connessione WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
   }
+  Serial.println("✅ Connesso");
 
-  if (WiFi.status() != WL_CONNECTED) {
-    screen.clearScreen();
-    screen.print("SSID:" +ssid_name);
-    if(!wifimanager.autoConnect(ssid_name.c_str())) {
-      screen.clearScreen();
-      screen.print("No Connection");   
-    } else {
-        // Salva le credenziali correnti (SSID e Password) nella NVS
-        // WiFiManager di per sé salva già le credenziali, ma questo dimostra come potresti gestirle
-        // per altri scopi o per assicurarti che siano persistenti indipendentemente
-        // dalle future inizializzazioni di WiFiManager.
-        prefs.putString("ssid", WiFi.SSID());
-        prefs.putString("password", WiFi.psk());
-        prefs.end();
-    }
+  client.setServer(mqtt_server, 1883);
+
+  Serial.print("Connessione MQTT...");
+  if (!client.connect("ESP32bilancia")) {
+    Serial.print("❌ Errore: ");
+    Serial.println(client.state());
+  } else {
+    Serial.println("✅ Connesso MQTT");
+    bool sent = client.publish("bilancia/9F2A", "messaggio di prova nuovo");
+    Serial.println(sent ? "✅ Messaggio inviato" : "❌ Invio fallito");
   }
+  ///////
+  // OLED Monitor setup
+  screen.begin();
+  screen.clearScreen();
+  
+  if (!wifiReady()) {
+    screen.println("Connect to: ");
+    screen.println(ssid_captive);
 
-  // Battery parameters
-  if (batteria.percentualeBatteria() <= 5) {
-    esp_sleep_enable_timer_wakeup(60 * 1000000); // Deep sleep for 60sec if battry very low
-    esp_deep_sleep_start();
+    initWifi();
+    WiFi.mode(WIFI_OFF);   // spegne fisicamente il modulo WiFi
   }
 
   // QR code scanner setup 
@@ -157,44 +137,43 @@ void setup() {
   Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
   delay(200);
 
-  String mode = getWorkingMode();
-  Serial.println(mode);
-  if (mode.indexOf("00210003") == -1) {
-    Serial2.print("~M00210003.\r\n");
-    delay(200);
-    Serial2.print("~MA5F0506A.\r\n");
-    if (Serial2.available()) {
-      Serial.println("Serial2 Available");
-    } else {
-      Serial.println("Serial2 NOT Available");
+  if (prefProdottoIsEmpty()) {
+    screen.clearScreen();
+    screen.println("ATTIVA");
+    screen.println("SCAN QR");
+    delay(100);
+    /*
+    // Command continuous mode sleep setting
+    //  Turn off sleep ~M00220000.
+    //  Start sleep ~M00220001.
+    */
+    String mode = getWorkingMode();
+    Serial.println(mode);
+    prepareQR();  
+    prodName = prefs.getString("nome", "");
+    prodBrand = prefs.getString("marca", "");
+    prodWeight = prefs.getFloat("peso", 0.0);
+    while (prefProdottoIsEmpty()) {
+      led.blue();
+      if (digitalRead(SCAN_PIN) == HIGH) {
+        led.yellow();
+        String code = scanQRCode();
+        Serial.println(code);
+        if (code != "") {
+          fetchProductData(code);
+          prodName = prefs.getString("nome", "");
+          prodBrand = prefs.getString("marca", "");
+          prodWeight = prefs.getFloat("peso", 0.0);
+        }
+      }
     }
   }
-  Serial.println("MQTT...");
-  client.setServer(mqtt_server, 1883);
-  //client.setCallback(callback);
-  
-  Serial.println("LED");
-  // RGB Led setup
-  led.blue();
-  
-  Serial.println("Screen");
 
-  screen.clearScreen();
-  screen.println("Connesso: ");
-  screen.println(WiFi.SSID());
-
-  Serial2.print("~T.\r\n");
-  delay(500);
-  if (Serial2.available()) {
-    screen.println("QR OK!");
-    delay(500);
-  } else {
-    screen.println("Errore QR!");
-  }
+  led.green();
 
   loadcell.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
   loadcell.set_scale(-1950.3);
-    
+
   xTaskCreatePinnedToCore(
     taskPeso,        // funzione da eseguire
     "TaskBilancia",  // nome
@@ -210,7 +189,7 @@ void setup() {
  * @brief Loop principale: gestisce scansione QR e lettura peso.
  */
 void loop() {
-    // Pulsante premuto
+    // Pulsante premuto per 5 secondo si resetta il device
   if (digitalRead(RESET_PIN) == HIGH) {
     Serial.println("RESET");
     if (!resetInProgress) {
@@ -218,11 +197,7 @@ void loop() {
       resetInProgress = true;
     } else if (millis() - resetPressStart >= RESET_HOLD_TIME) {
       Serial.println("🧨 Reset a lungo - Cancello le preferenze...");
-      Preferences prefs;
-      prefs.begin("bilancia", false);
-      prefs.clear();
-      prefs.end();
-
+      resetNVS();
       delay(500);
       Serial.println("🔁 Reboot...");
       ESP.restart();
@@ -231,17 +206,12 @@ void loop() {
     resetInProgress = false;  // Se rilasciato prima dei 5s
   }
 
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
-
   if (digitalRead(SCAN_PIN) == HIGH) {
     screen.clearScreen();
     screen.println("Scan...");
     led.yellow();
     String code = scanQRCode();
-    screen.println(code);
+    screen.println("mode: " + code);
     if (code != "") {
       fetchProductData(code);
     } else {
@@ -251,39 +221,110 @@ void loop() {
   delay(1000);
 }
 
+
 // === Task da eseguire su Core 0 ===
 void taskPeso(void* parameter) {
   while (true) {
     float peso = loadcell.get_units();
     peso = peso - 183.65;
-    Serial.print("Peso letto: ");
-    Serial.println(peso);
+    Serial.println("📦 Peso letto: " + String(peso, 2));
+    if (peso > 10 && (peso < (prodWeight*0.2))) {
+      Serial.println("⚠️ Peso sotto soglia, provo connessione...");
 
-    // Controllo cambiamento peso
-    if (abs(peso - lastPeso) < 15.0) {
-      lettureUguali++;
-      if (lettureUguali >= 2) {
-        Serial.println("Peso stabile, vado in sleep per 30s...");
-        screen.sleep();
-        vTaskDelay(pdMS_TO_TICKS(100));  // breve attesa prima dello sleep
-        esp_sleep_enable_timer_wakeup(30 * 1000000ULL); // 30 sec
-        esp_deep_sleep_start();
+      if (WiFi.getMode() == WIFI_OFF) {
+        WiFi.mode(WIFI_STA);
+        delay(100);
       }
+
+      if (WiFi.status() != WL_CONNECTED) {
+        prefs.begin("settings", true);
+        String ssid = prefs.getString("ssid", "");
+        String password = prefs.getString("password", "");
+        prefs.end();
+
+        WiFi.begin(ssid.c_str(), password.c_str());
+        Serial.print("🔌 Connessione WiFi");
+        unsigned long start = millis();
+        while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
+          delay(250);
+          Serial.print(".");
+        }
+        delay(500);
+        Serial.println();
+
+      }
+  connectWiFi();
+  if (WiFi.status() == WL_CONNECTED) {
+
+   bool sent = false;
+    client.setServer(mqtt_server, 1883); 
+    Serial.println("📡 Connesso, invio a MQTT...");
+
+    if (!client.connected()) {
+      if (!client.connect(device_id)) {
+        Serial.println("❌ Errore connessione MQTT");
+          Serial.println(client.state());
+      } else {
+              //client.loop(); // mantiene la connessione attiva, opzionale
+              delay(100);    // piccolo delay per sicurezza
+
+              client.loop();
+              String topic = "bilancia/" + String(device_id);
+              String messaggio = prodName + " in esaurimento";
+              Serial.println(topic + " " + messaggio);
+              //sent = client.publish(topic.c_str(), messaggio.c_str());
+              sent = client.publish("bilancia/9F2A", "messaggio di prova 2");
+
+              Serial.println("MQTT state: " + String(client.state()));
+      }
+    }
+    if (sent) {
+      Serial.println("✅ Messaggio inviato");
     } else {
-      lettureUguali = 0;
+      Serial.println("❌ Errore invio messaggio MQTT");
+    }
+  
+ 
+  }
+      disconnectWiFi();  // tua funzione personalizzata
+    }
+    // Ignora se peso è troppo basso (es. <100g), considerato "niente sulla bilancia"
+
+    if (peso < 10) {
+      screen.clearScreen();
+      screen.println(prodName);
+      screen.println(prodBrand);
+      screen.println(String(prodWeight, 2));
+      screen.println("VUOTA");
+    } else {
+      screen.clearScreen();
+      screen.println("W: " + String(peso, 2));
+      led.green();
+    }
+    lettureUguali++;
+    if (lettureUguali >= 2) {
+      Serial.println("Peso stabile, vado in sleep per 30s...");
+      screen.sleep();
+      vTaskDelay(pdMS_TO_TICKS(100));  // breve attesa prima dello sleep
+      esp_sleep_enable_timer_wakeup(30 * 1000000ULL); // 30 sec
+      esp_deep_sleep_start();
     }
 
-    lastPeso = peso;
-    vTaskDelay(pdMS_TO_TICKS(10000)); // Aspetta 10s
+    vTaskDelay(pdMS_TO_TICKS(20000)); // Aspetta 20s
   }
 }
-
 
 /**
  * @brief Recupera i dati prodotto da OpenFoodFacts tramite codice a barre.
  * @param code Codice numerico del prodotto.
  */
 void fetchProductData(String code) {
+  if (!wifiReady()) {
+    initWifi();
+  }
+  
+  connectWiFi();
+
   if (WiFi.status() == WL_CONNECTED) {
     String url = apiUrl + code + ".json";
     Serial.println(url);
@@ -294,6 +335,7 @@ void fetchProductData(String code) {
 
     if (httpCode == 200) {
       String response = http.getString();
+      //Serial.println(response);
       parseJSON(response);
     } else {
       screen.clearScreen();
@@ -304,6 +346,8 @@ void fetchProductData(String code) {
     screen.clearScreen();
     screen.println("No WiFi");
   }
+
+  disconnectWiFi();
 }
 
 /**
@@ -311,43 +355,45 @@ void fetchProductData(String code) {
  * @param jsonResponse Risposta JSON completa.
  */
 void parseJSON(const String& jsonResponse) {
-  DynamicJsonDocument doc(24576);
-  DeserializationError error = deserializeJson(doc, jsonResponse);
 
+    Serial.println("📦 JSON ricevuto:");
+  Serial.println("📏 Dimensione: " + String(jsonResponse.length()));
+
+  // Filtro per risparmiare memoria
+  StaticJsonDocument<512> filter;
+  filter["product"]["product_name"] = true;
+  filter["product"]["brands"] = true;
+  filter["product"]["product_quantity"] = true;
+
+  DynamicJsonDocument doc(4096);  // adatto a risposta filtrata
+
+  DeserializationError error = deserializeJson(doc, jsonResponse, DeserializationOption::Filter(filter));
   if (error) {
-    screen.clearScreen();
-    screen.println("JSON error");
+    Serial.println("❌ Errore nel parsing JSON:");
+    Serial.println(error.c_str());
     return;
   }
 
-  int status = doc["status"] | 0;
-  if (status == 0) {
-    screen.clearScreen();
-    screen.println("NOT FOUND");
-    return;
-  }
-
-  led.green();
   JsonObject product = doc["product"];
   String name = product["product_name"] | "Sconosciuto";
-  prefs.putString("nome", name);
   String brand = product["brands"] | "Sconosciuto";
-  prefs.putString("marca", brand);
-  String quantity = product["product_quantity"] | "N/D";
-  Serial.println(quantity);
-  original_weight = quantity.toFloat();
-  prefs.putFloat("peso", original_weight);
+  float peso = product["product_quantity"].as<float>();
 
-  if (quantity.length() > 0 && peso > 0.0) {
-    prefs.putFloat("peso", peso);
-  } else {
-    prefs.putFloat("peso", 0.0);
-  }
+  Serial.println("✅ JSON OK:");
+  Serial.println("Nome prodotto: " + name);
+  Serial.println("Marca: " + brand);
+  Serial.println("Peso: " + String(peso));
+
+  prefs.begin("settings", false);
+  prefs.putString("nome", name);
+  prefs.putString("marca", brand);
+  prefs.putFloat("peso", peso);
+  prefs.end();
 
   screen.clearScreen();
   screen.println(name);
   screen.println(brand);
-  screen.println("Peso: " + quantity + "g");
+  screen.println(String(peso, 2));
 
 }
 
@@ -357,4 +403,17 @@ void reconnect() {
     // Attempt to connect
       client.connect("ESP32scale");
   }
+}
+
+void resetNVS() {
+  esp_err_t err = nvs_flash_erase();
+  if (err == ESP_OK) {
+    Serial.println("🧹 NVS cancellato completamente!");
+  } else {
+    Serial.print("❌ Errore NVS erase: ");
+    Serial.println(esp_err_to_name(err));
+  }
+
+  // Serve per riinizializzare NVS dopo l'erase
+  nvs_flash_init();  
 }
