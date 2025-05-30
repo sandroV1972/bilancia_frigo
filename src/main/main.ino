@@ -20,7 +20,6 @@
 #include <Preferences.h>
 #include <PubSubClient.h>
 #include "qr_func.h"
-//#include "QRCodeGenerator.h"
 #include <U8g2lib.h>
 #include <UniversalTelegramBot.h>
 #include <WebServer.h>
@@ -44,7 +43,6 @@ WebServer server;
 WiFiManager wifimanager;
 WiFiClientSecure wificlient; // Wifi Client
 WiFiClient mqttclient;
-// Add your MQTT Broker IP address, example:
 const char* mqtt_server = "mqtt.atrent.it";
 PubSubClient client(mqttclient);
 HX711 loadcell; // Inizializza la cella di carico (HX711)
@@ -60,7 +58,7 @@ U8G2_SH1106_128X64_NONAME_F_HW_I2C oled(U8G2_R0, U8X8_PIN_NONE);
 // Oggetto DisplayManager 
 DisplayManager screen(oled, batteria);
 LedRGB led(13, 12, 14);  // LED RGB: R=13, G=12, B=14
-// URL used to rtreive JSON of scanned products
+// URL per JSON prodotti
 String apiUrl = "https://world.openfoodfacts.org/api/v0/product/";
 const String topic = "bilancia/" + String(device_id);
 const String ssid_captive = "BILANCIA-"+String(device_id);

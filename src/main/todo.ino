@@ -1,0 +1,2 @@
+- se attivo QR resetta il tempo del task
+- la logica del peso stabile non funziona bene
