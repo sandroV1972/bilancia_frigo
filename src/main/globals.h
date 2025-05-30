@@ -19,5 +19,6 @@ extern float prodWeight;
 extern const String ssid_captive;
 extern String ssid;
 extern String password;
+extern bool inviamqtt;
 
 // 

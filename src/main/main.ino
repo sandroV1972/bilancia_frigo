@@ -75,6 +75,7 @@ String prodBrand;
 float prodWeight;
 String ssid;
 String password;
+bool inviamqtt;
 
 /**
  * @brief Inizializza periferiche (WiFi, display, HX711, QR scanner, LED RGB).
@@ -99,27 +100,6 @@ void setup() {
     delay(1000);
     ESP.restart();
   }
-  ////////
-    WiFi.begin("CASAVALENTI", "mmeni1607aC");
-  Serial.print("Connessione WiFi");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("✅ Connesso");
-
-  client.setServer(mqtt_server, 1883);
-
-  Serial.print("Connessione MQTT...");
-  if (!client.connect("ESP32bilancia")) {
-    Serial.print("❌ Errore: ");
-    Serial.println(client.state());
-  } else {
-    Serial.println("✅ Connesso MQTT");
-    bool sent = client.publish("bilancia/9F2A", "messaggio di prova nuovo");
-    Serial.println(sent ? "✅ Messaggio inviato" : "❌ Invio fallito");
-  }
-  ///////
   // OLED Monitor setup
   screen.begin();
   screen.clearScreen();
@@ -189,6 +169,34 @@ void setup() {
  * @brief Loop principale: gestisce scansione QR e lettura peso.
  */
 void loop() {
+  ////////
+  if (inviamqtt) {
+    WiFi.begin(ssid, password);
+    Serial.print("Connessione WiFi");
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(500);
+      Serial.print(".");
+    }
+    Serial.println("✅ Connesso");
+
+    client.setServer(mqtt_server, 1883);
+
+    Serial.print("Connessione MQTT...");
+    if (!client.connect("ESP32bilancia")) {
+      Serial.print("❌ Errore: ");
+      Serial.println(client.state());
+    } else {
+      Serial.println("✅ Connesso MQTT");
+       String messaggio = prodName + " in esaurimento";
+      bool sent = client.publish(topic.c_str(), messaggio.c_str());
+      Serial.println(sent ? "✅ Messaggio inviato" : "❌ Invio fallito");
+    }
+    inviamqtt = false;
+  }
+  ///////
+
+
+
     // Pulsante premuto per 5 secondo si resetta il device
   if (digitalRead(RESET_PIN) == HIGH) {
     Serial.println("RESET");
@@ -224,93 +232,40 @@ void loop() {
 
 // === Task da eseguire su Core 0 ===
 void taskPeso(void* parameter) {
+  //client.setServer(mqtt_server, 1883); // sempre una volta fuori dal loop
+
   while (true) {
-    float peso = loadcell.get_units();
-    peso = peso - 183.65;
+    inviamqtt = false;
+    float peso = loadcell.get_units() - 183.65;
     Serial.println("📦 Peso letto: " + String(peso, 2));
-    if (peso > 10 && (peso < (prodWeight*0.2))) {
-      Serial.println("⚠️ Peso sotto soglia, provo connessione...");
 
-      if (WiFi.getMode() == WIFI_OFF) {
-        WiFi.mode(WIFI_STA);
-        delay(100);
-      }
-
-      if (WiFi.status() != WL_CONNECTED) {
-        prefs.begin("settings", true);
-        String ssid = prefs.getString("ssid", "");
-        String password = prefs.getString("password", "");
-        prefs.end();
-
-        WiFi.begin(ssid.c_str(), password.c_str());
-        Serial.print("🔌 Connessione WiFi");
-        unsigned long start = millis();
-        while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
-          delay(250);
-          Serial.print(".");
-        }
-        delay(500);
-        Serial.println();
-
-      }
-  connectWiFi();
-  if (WiFi.status() == WL_CONNECTED) {
-
-   bool sent = false;
-    client.setServer(mqtt_server, 1883); 
-    Serial.println("📡 Connesso, invio a MQTT...");
-
-    if (!client.connected()) {
-      if (!client.connect(device_id)) {
-        Serial.println("❌ Errore connessione MQTT");
-          Serial.println(client.state());
-      } else {
-              //client.loop(); // mantiene la connessione attiva, opzionale
-              delay(100);    // piccolo delay per sicurezza
-
-              client.loop();
-              String topic = "bilancia/" + String(device_id);
-              String messaggio = prodName + " in esaurimento";
-              Serial.println(topic + " " + messaggio);
-              //sent = client.publish(topic.c_str(), messaggio.c_str());
-              sent = client.publish("bilancia/9F2A", "messaggio di prova 2");
-
-              Serial.println("MQTT state: " + String(client.state()));
-      }
+    if (peso > 10 && peso < (prodWeight * 0.2)) {
+      inviamqtt = true;
     }
-    if (sent) {
-      Serial.println("✅ Messaggio inviato");
-    } else {
-      Serial.println("❌ Errore invio messaggio MQTT");
-    }
-  
- 
-  }
-      disconnectWiFi();  // tua funzione personalizzata
-    }
-    // Ignora se peso è troppo basso (es. <100g), considerato "niente sulla bilancia"
 
+    // Output su display
+    screen.clearScreen();
     if (peso < 10) {
-      screen.clearScreen();
       screen.println(prodName);
       screen.println(prodBrand);
       screen.println(String(prodWeight, 2));
       screen.println("VUOTA");
     } else {
-      screen.clearScreen();
       screen.println("W: " + String(peso, 2));
       led.green();
     }
+
+    // sleep se peso stabile
     lettureUguali++;
     if (lettureUguali >= 2) {
-      Serial.println("Peso stabile, vado in sleep per 30s...");
+      Serial.println("Peso stabile, sleep 30s...");
       screen.sleep();
-      vTaskDelay(pdMS_TO_TICKS(100));  // breve attesa prima dello sleep
-      esp_sleep_enable_timer_wakeup(30 * 1000000ULL); // 30 sec
+      vTaskDelay(pdMS_TO_TICKS(100));
+      esp_sleep_enable_timer_wakeup(30 * 1000000ULL);
       esp_deep_sleep_start();
     }
 
-    vTaskDelay(pdMS_TO_TICKS(20000)); // Aspetta 20s
+    vTaskDelay(pdMS_TO_TICKS(20000)); // ogni 20s
   }
 }
 
