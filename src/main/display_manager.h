@@ -10,15 +10,14 @@
  */
 
 #ifndef DISPLAY_MANAGER_H
-#define DISPLAY_MANAGER_H/Users/alessandrovalenti/Documents/Arduino/libraries/QRCode/src/qrcode.c /Users/alessandrovalenti/Documents/Arduino/libraries/QRCode/src/qrcode.h
+#define DISPLAY_MANAGER_H
 
-#include "QRCodeGenerator.h"
 #include <Arduino.h>
-#include <battery.h>
+#include "battery.h"
 #include "font_u8g2_adapter.h"
+#include "QRCodeGenerator.h"
 #include <U8g2lib.h>
-#include <WiFi.h>
-
+#include <WiFi.h> 
 
 class DisplayManager {
 private:
@@ -44,6 +43,9 @@ public:
     u8g2->setFont(f);
   }
 
+  void sleep() {
+    u8g2->sleepOn();
+  }
   void aggiornaBarraStato(const String& wifi = "") {
     setFont("Arial", 8);
     u8g2->clearBuffer();
@@ -64,6 +66,7 @@ public:
   }
 
   void print(const String &text) {
+    if (text.isEmpty()) return;
     u8g2->drawStr(cursorX, cursorY, text.c_str());
     cursorX += u8g2->getStrWidth(text.c_str());
     u8g2->sendBuffer();
@@ -96,11 +99,11 @@ public:
     for (int i = 0; i < bars; i++) {
       u8g2->drawBox(x + 2 + i * 4, y + 2, 3, h - 4);
     }
-    u8g2->setFont(u8g2_font_6x10_tr);
     u8g2->setCursor(x + w + 5, y + h - 1);
     u8g2->print((int)percent);
     u8g2->print("%");
   }
+  
   
   void drawQRCode(const String& text) {
     QRCode qrcode;

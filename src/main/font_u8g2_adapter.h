@@ -22,7 +22,7 @@ public:
     add("Arial", 18, u8g2_font_helvR18_tf);
     add("Arial", 24, u8g2_font_helvR24_tf);
 
-    // ===== Times (ncen) - Times New Roman Style =====
+    /* ===== Times (ncen) - Times New Roman Style =====
     add("Times", 8, u8g2_font_ncenR08_tf);
     add("Times", 10, u8g2_font_ncenR10_tf);
     add("Times", 12, u8g2_font_ncenR12_tf);
@@ -69,6 +69,7 @@ public:
     // ===== Decorative / Script =====
     add("Script", 12, u8g2_font_cu12_tr);
     add("Script", 14, u8g2_font_cu12_tn);
+    */
   }
 
   const uint8_t* getFont(const char* name, int size) {

@@ -39,7 +39,6 @@ public:
 
   // Stampa tutti i font registrati
   void listAll() const {
-    Serial.println("\n📋 Font registrati:");
     for (int i = 0; i < count; ++i) {
       Serial.print(" - ");
       Serial.print(fonts[i].name);
