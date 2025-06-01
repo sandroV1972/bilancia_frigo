@@ -65,8 +65,9 @@ void initWifi() {
       Serial.println("❌ Nessuna credenziale salvata in NVS.");
       return false;
     }
-
     WiFi.mode(WIFI_STA);
+    IPAddress dns(8,8,8,8);
+    WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, dns);
     WiFi.begin(ssid.c_str(), password.c_str());
 
     Serial.print("🔌 Connessione a WiFi: ");
@@ -81,6 +82,8 @@ void initWifi() {
 
     if (WiFi.status() == WL_CONNECTED) {
       Serial.println("✅ WiFi connesso con IP: " + WiFi.localIP().toString());
+      Serial.print("DNS configurato: ");
+      Serial.println(WiFi.dnsIP());
       return true;
     } else {
       Serial.println("❌ Connessione WiFi fallita");

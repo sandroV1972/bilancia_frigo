@@ -213,6 +213,7 @@ void loop() {
   }
 
   if (digitalRead(SCAN_PIN) == HIGH) {
+    vTaskSuspend(taskBilancia);
     screen.clearScreen();
     screen.println("Scan...");
     led.yellow();
@@ -223,6 +224,9 @@ void loop() {
     } else {
       screen.println("NO CODE");
     }
+    lettureUguali = 0;
+    vTaskSuspend(taskBilancia);
+
   }
   delay(1000);
 }
@@ -275,27 +279,36 @@ void fetchProductData(String code) {
   if (!wifiReady()) {
     initWifi();
   }
-  
+  WiFi.disconnect(true);
   connectWiFi();
 
   if (WiFi.status() == WL_CONNECTED) {
-    String url = apiUrl + code + ".json";
-    Serial.println(url);
-    wificlient.setInsecure();
-    HTTPClient http;
-    http.begin(wificlient, url);
+  String url = "https://world.openfoodfacts.net/api/v2/product/" + code + "json?fields=product_name,brands,product_quantity";
+  Serial.println("URL: " + url);
+IPAddress openfoodIP;
+WiFi.hostByName("world.openfoodfacts.org", openfoodIP);
+Serial.println(openfoodIP);
+  wificlient.setInsecure(); // accetta qualunque certificato
+  HTTPClient http;
+  http.setTimeout(5000);  // timeout 5s
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  
+  if (http.begin(wificlient, url)) {
     int httpCode = http.GET();
-
+    Serial.printf("HTTP code: %d\n", httpCode);
+    
     if (httpCode == 200) {
       String response = http.getString();
-      //Serial.println(response);
       parseJSON(response);
     } else {
       screen.clearScreen();
-      screen.println("Errore HTTP");
+      screen.println("Errore HTTP: " + String(httpCode));
     }
     http.end();
   } else {
+    Serial.println("Errore http.begin()");
+  }
+}else {
     screen.clearScreen();
     screen.println("No WiFi");
   }
