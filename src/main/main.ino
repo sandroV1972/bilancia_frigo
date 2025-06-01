@@ -269,8 +269,8 @@ void taskPeso(void* parameter) {
     inviamqtt = false;
     float peso = loadcell.get_units() - 183.65;
     Serial.println("📦 Peso letto: " + String(peso, 2));
-
-    if (peso > 10 && peso < (prodWeight * 0.2)) {
+    float variazione = (fabs(peso) - fabs(lastPeso))/fabs(lastPeso);
+    if (peso > 10 && peso < (prodWeight * 0.2) && (variazione > 0.10 && variazione < 1)) {
       inviamqtt = true;
     }
 
@@ -289,7 +289,7 @@ void taskPeso(void* parameter) {
     }
 
     // sleep se peso stabile
-    float variazione = (fabs(peso) - fabs(lastPeso))/fabs(lastPeso);
+   
     Serial.println("variazione: " + String(variazione));
     if ((lastPeso != 0) && (variazione < 0.10)) {
       lettureUguali++;

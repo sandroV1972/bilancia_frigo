@@ -23,9 +23,9 @@ Componenti principali:
 ## Funzionamento
 1. **Identificazione dell’oggetto**: Viene eseguita la scansione del codice a barre per recuperare informazioni sul prodotto. Il codice GTIN rilevato veine inviato al server di openfoodfacts che restituisce i dati sotoforma di file JSON. Registriamo il peso previsto o il volume (500ml, 1000ml) e calcoliamo le soglie 50% o 20% ecc... 
 2. **Lettura del peso**: L’ESP32 acquisisce i segnali dal sensore di peso. L'oggetto viene appoggiato sulla piattaforma di peso. Appena il peso si stabilizza viene elaborato l'algoritmo di calcolo delle soglie.
-3. **Elaborazione dei dati**: L’ESP32 elabora peso e codice, eseguendo calcoli e memorizzando i risultati. Quando la precentuale di prodotto residuo si attesta al di sotto di una soglia prestabilita viene inviato un messaggio al server MQTT (...o altro servizio).
+3. **Elaborazione dei dati**: L’ESP32 elabora peso e codice, eseguendo calcoli e memorizzando i risultati. Quando la precentuale di prodotto residuo si attesta al di sotto di una soglia prestabilita viene inviato un messaggio al server MQTT.
 4. **Notifica o interfacciamento**: ESP32 si collega a un server https di openfoodfacts.org che accetta richieste con il codice GTIN del prodotto letto dal sensore 1D/2D. Il server restituisce dati del prodotto in formato JSON.
-Questi dati possono essere utilizzati per calcolare il valore peso soglia sotto il quale viene inviato un mesaggio al servere MQTT (...)
+Questi dati possono essere utilizzati per calcolare il valore peso soglia sotto il quale viene inviato un mesaggio al servere MQTT. La soglia è stata fissata al 20% del peso del prodotto pieno. Openfoodfacts ha una documentazione molto estesa. Da la possibilità di scaricare JSON (o altro) direttamente tramite i loro server. Esiste un server di staging che non richiede autenticazione word.openfoodfacts.net e una documntazione estesa sul repostory https://openfoodfacts.github.io/openfoodfacts-server/api/
 
 ## Librerie Utilizzate
 - **Arduino.h**: Libreria base di Arduino, include funzioni fondamentali (`digitalWrite`, `millis`, ecc.).
@@ -64,7 +64,7 @@ Questi dati possono essere utilizzati per calcolare il valore peso soglia sotto 
 Il progetto viene alimentato da una batteria a lipo di 3,7V 1000mAh. Per gestire il consumo della batteria abbiamo utilizzato un circuito di carica TP4056 e un regolatore Step-up (Pololu 5V Step-Up/Step-Down Voltage Regulator S7V8F5). TP4056 gestisce la carica della batteria e invia al regolatore ESP32 il voltaggio corretto di alimentazione. Abbiamo bisogno di due linee una a 3.3v e una a 5v per alimentare ESP32 e i diversi attuatori. La baord viene alimentata a 5v e si sfrutta il pin 3v3 per alimentare lo schermo OLED, il led RGB e il sensore di peso HX711. Il lettore di codici a barre MH-ET LIVE utilizza 5v condivisi in uscita dallo step up. La board si accende e viene alimentata dalla batteria consumando massimo 160mAh + 120mAh per il GM65 e 15mAh per il HX711, 60mAh per il led RGB 
 che in caso di idle al 10% consuma 6mAh.
 
-## Consumo Energetico per Componente (stima su 1h)
+### Consumo Energetico per Componente (stima su 1h)
 | Componente        | Stato                      | Corrente (mA) | Durata per ora     | Consumo (mAh) |
 |-------------------|----------------------------|---------------|--------------------|---------------|
 | **ESP32**         | Attivo + 20sec WiFi TX     | 60 o 130      | (200 s) + (40s)    | 3.484         |
