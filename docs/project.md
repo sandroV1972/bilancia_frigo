@@ -78,7 +78,7 @@ che in caso di idle al 10% consuma 6mAh.
 |                   | Spento                     | 0             | 56 min             | 0             |
 
 | **Totale (GM65 stand by)**                                    | **86,88 ore**      | **12,66 mAh** |    
-| **Totale (GM65 spentoe)**                                     | **235,29 ore**     | **4,675 mAh** |     
+| **Totale (GM65 spento)**                                      | **235,29 ore**     | **4,675 mAh** |     
 
 ### Fonti e documentazione
 
@@ -86,7 +86,12 @@ che in caso di idle al 10% consuma 6mAh.
 - [HX711 Datasheet](https://cdn.sparkfun.com/datasheets/Sensors/Force/hx711_english.pdf)
 - [GM65 QR Module Specs - Waveshare](https://www.waveshare.com/wiki/QR_Code_Scanner_Module_(UART))
 
-Con un mosfet N si potrebbe spegnere il circuito di alimentazione del GM65 quando non viene utilizzato. Si potrebbero risparmiare circa 8mAh al'ora quindi 192mAh al giorno, allungando la vita della batteria da 86,88 ore a 235,29 ore. Con una batteria da 2000mAh si potrebbe avere una vita di circa 20 giorni. Se invece di avere un controllo ogni 30 minuti avessimo un controllo ogni ora si potrebbero risparmiare altri 1.7mAh si allungherebbe la vita a 95 o 379 ore (cioè potremmo arrivare fino a 15 giorni, raddoppiando la capacità della batteria circa un mese). 
+Con un mosfet N si potrebbe spegnere il circuito di alimentazione del GM65 quando non viene utilizzato. Si potrebbero risparmiare circa 8mAh al'ora quindi 192mAh al giorno, allungando la vita della batteria da 86,88 ore a 235,29 ore. Con una batteria da 2000mAh si potrebbe avere una vita di circa 20 giorni. Se invece di avere un controllo ogni 30 minuti avessimo un controllo ogni ora si potrebbero risparmiare altri 1.7mAh si allungherebbe la vita a 95 o 379 ore (cioè potremmo arrivare fino a 15 giorni, raddoppiando la capacità della batteria circa un mese). Disattivando il BT potri risparmiare anora altri 0.33mAh all'ora quindi circa 8mAh al giorno.
+
+### Sviluppi futuri
+
+Con dei livelli inferiori al 20% del peso originale del prodotto si potrebbe inviare un messaggio Telegram o inviare un'email o un SMS al proprietario del frigo. Un Telegram bot non è complicato ma comporta comunque una registrazione attiva dall'utente. WhatsApp o SMS sono opzioni che comportano un costo a messaggio.
+Attualmente il servizio invia un messaggio ogni volta che la bilancia rileva che il prodotto è sotto la soglia prestabilita ma solo se il peso cambia del 10% rispetto alla pesata precedente. Il richio è che se il peso originale fosse 1000 e pesiamo 199 e poi 99 il sistema manderebbe due messaggi. Si potrebbe utilizzare una logica con un valore nelle preferenze che invia solo se non è stato inviato precedentemente
 
 ## Conclusioni
 Il sistema illustrato rappresenta un prototipo di bilancia “smart” che può essere impiegata in contesti domestici per esempio in frigo dove appoggiando un prodotto saremo automaticamente avvertiti se la quantità residua del prodotto è sotto una certa soglia e quindi vine e richiesto il nuovo approviggionamento dello stesso prodotto.
