@@ -119,6 +119,8 @@ void setup() {
     WiFi.mode(WIFI_OFF);   // spegne fisicamente il modulo WiFi
   }
 
+  screen.println("Connesso...");
+  screen.println("Scan QR");
   // QR code scanner setup 
   pinMode(SCAN_PIN, INPUT_PULLUP);
   Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
@@ -193,7 +195,6 @@ void loop() {
   // al server
   //
   if (inviamqtt) {
-    WiFi.begin(ssid, password);
     Serial.print("Connessione WiFi");
     while (WiFi.status() != WL_CONNECTED) {
       delay(500);
@@ -209,9 +210,9 @@ void loop() {
       Serial.println(client.state());
     } else {
       Serial.println("✅ Connesso MQTT");
-       String messaggio = prodName + " in esaurimento";
+      String messaggio = prodName + " in esaurimento";
       bool sent = client.publish(topic.c_str(), messaggio.c_str());
-      Serial.println(sent ? "✅ Messaggio inviato" : "❌ Invio fallito");
+      Serial.println(sent ? "✅ Messaggio " + messaggio : "❌ Invio fallito");
     }
     inviamqtt = false;
   }
@@ -254,7 +255,7 @@ void loop() {
       screen.println("NO CODE");
     }
     lettureUguali = 0;
-    vTaskSuspend(taskBilancia);
+    vTaskResume(taskBilancia);
 
   }
   delay(1000);
@@ -270,7 +271,7 @@ void taskPeso(void* parameter) {
     float peso = loadcell.get_units() - 183.65;
     Serial.println("📦 Peso letto: " + String(peso, 2));
     float variazione = (fabs(peso) - fabs(lastPeso))/fabs(lastPeso);
-    if (peso > 10 && peso < (prodWeight * 0.2) && (variazione > 0.10 && variazione < 1)) {
+    if (peso > 10 && peso < (prodWeight * 0.2) && variazione < 1000) {
       inviamqtt = true;
     }
 

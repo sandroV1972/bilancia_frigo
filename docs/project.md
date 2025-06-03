@@ -52,7 +52,9 @@ Questi dati possono essere utilizzati per calcolare il valore peso soglia sotto 
 
 ## Librerie  create (non trovate alternative)
 - display_manager.h // Gestione più semplice dei font per il testo da inviare all'OLED
-- led_rgb_controller.h // Gestione e test componente SMD RGB e attivare colori base chiamando una semplice funzione 
+- led_rgb_controller.h // Gestione e test componente SMD RGB e attivare colori base chiamando una semplice funzione. Vine creato un oggetto ledRGB che sfruttando 3 pin PWM (Pulse Width Modulation) regola l'intensità dei tre colori. Con una funzione intentisty() si può regolare l'intensità di tutti e tre i colori in un unico chiamata, regolando il duty cycle di tutti e tre i colori.
+   -- LedRGB(int rPin, int gPin, int bPin) 
+   -- void intensity(float value) // da 0 a 1
 
 ## File principali
 - main.ino // File principale che contiene la logica principale del programma
