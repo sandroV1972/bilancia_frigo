@@ -195,6 +195,10 @@ void loop() {
   // al server
   //
   if (inviamqtt) {
+    //connectWiFi();
+    WiFi.mode(WIFI_STA);
+    delay(1000);
+    WiFi.begin(ssid, password);
     Serial.print("Connessione WiFi");
     while (WiFi.status() != WL_CONNECTED) {
       delay(500);
@@ -211,10 +215,16 @@ void loop() {
     } else {
       Serial.println("✅ Connesso MQTT");
       String messaggio = prodName + " in esaurimento";
-      bool sent = client.publish(topic.c_str(), messaggio.c_str());
+      bool sent = client.publish(topic.c_str(), messaggio.c_str(), true);
+      client.loop();                  // forza l'elaborazione
+      delay(200);                     // lascia tempo per l'invio
+      client.disconnect();            // chiusura ordinata
       Serial.println(sent ? "✅ Messaggio " + messaggio : "❌ Invio fallito");
     }
     inviamqtt = false;
+    WiFi.disconnect(true);  // true = cancella anche le credenziali dalla RAM
+    WiFi.mode(WIFI_OFF);    // spegne fisicamente il modulo radio
+    //disconnectWiFi();
   }
 
     // Pulsante premuto per 5 secondo si resetta il device
