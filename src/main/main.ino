@@ -215,7 +215,7 @@ void loop() {
     } else {
       Serial.println("✅ Connesso MQTT");
       String messaggio = prodName + " in esaurimento";
-      bool sent = client.publish(topic.c_str(), messaggio.c_str(), true);
+      bool sent = client.publish(topic.c_str(), messaggio.c_str());
       client.loop();                  // forza l'elaborazione
       delay(200);                     // lascia tempo per l'invio
       client.disconnect();            // chiusura ordinata
