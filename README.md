@@ -25,3 +25,6 @@ La bilancia è un oggetto piatto che può alloggiare un Tetrapack  quadrato. Lo 
 ### Sistemi di Comunicazione
 - HTTP a server @openfoodfacts.org/api/v0/ per riconoscimento oggetti da pesare passando il codice letto (GTIN)
 - MQTT trasmissione risultati pesate se al di sotto dei livelli minimi consentiti
+
+### Dettagli del progetto
+[Progetto](./docs/project.md)
